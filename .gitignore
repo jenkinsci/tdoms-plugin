@@ -1,0 +1,10 @@
+target/
+work/
+.idea/
+.vscode/
+.github/agents/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store

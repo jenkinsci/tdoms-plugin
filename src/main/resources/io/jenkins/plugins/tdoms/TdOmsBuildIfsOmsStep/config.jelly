@@ -1,0 +1,45 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry title="IBM i Server" field="server">
+        <f:combobox />
+    </f:entry>
+    <f:entry title="Target IFS Path" field="targetPath">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Relative Path" field="relativePath">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Action" field="action">
+        <f:textbox default="*PUSH" />
+    </f:entry>
+    <f:entry title="Branch" field="branch">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Application" field="application">
+        <f:textbox default="*CALC" />
+    </f:entry>
+    <f:entry title="Task" field="task">
+        <f:textbox default="*CALC" />
+    </f:entry>
+    <f:entry title="Route Code" field="routeCode">
+        <f:textbox default="*REG" />
+    </f:entry>
+    <f:entry title="Connect Stream File" field="connectStreamFile">
+        <f:textbox default="*REG" />
+    </f:entry>
+    <f:entry title="Copy to Source File" field="copyToSourceFile">
+        <f:textbox default="*REG" />
+    </f:entry>
+    <f:entry title="CCSID" field="ccsid">
+        <f:number default="1208" />
+    </f:entry>
+    <f:entry title="Add to Build Queue" field="addToBuildQueue">
+        <f:textbox default="*NO" />
+    </f:entry>
+    <f:entry title="Release Build Queue" field="releaseBuildQueue">
+        <f:textbox default="*NO" />
+    </f:entry>
+    <f:entry title="Log Level" field="logLevel">
+        <f:select default="3" />
+    </f:entry>
+</j:jelly>

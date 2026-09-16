@@ -1,0 +1,12 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry title="Compare Branch" field="compareBranch">
+        <f:textbox default="origin/master" />
+    </f:entry>
+    <f:entry title="Git Credentials" field="gitCredentialsId">
+        <f:select />
+    </f:entry>
+    <f:entry title="Log Level" field="logLevel">
+        <f:select default="3" />
+    </f:entry>
+</j:jelly>
