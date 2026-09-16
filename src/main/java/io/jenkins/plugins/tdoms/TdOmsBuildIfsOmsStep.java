@@ -11,6 +11,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import io.jenkins.plugins.tdoms.util.TdOmsLogLevel;
 import org.jenkinsci.plugins.ibmisteps.configuration.IBMiGlobalConfiguration;
 import org.jenkinsci.plugins.ibmisteps.configuration.IBMiServerConfiguration;
@@ -26,6 +27,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -350,14 +352,18 @@ public class TdOmsBuildIfsOmsStep extends Step {
             return Collections.unmodifiableSet(context);
         }
 
+        @RequirePOST
         public FormValidation doCheckTargetPath(@QueryParameter String value) {
+            checkReadPermission();
             if (value == null || value.trim().isEmpty()) {
                 return FormValidation.error("Target IFS path is required");
             }
             return FormValidation.ok();
         }
 
+        @RequirePOST
         public ListBoxModel doFillLogLevelItems() {
+            checkReadPermission();
             ListBoxModel levels = new ListBoxModel();
             for (TdOmsLogLevel level : TdOmsLogLevel.values()) {
                 levels.add(level.getCode() + " - " + level.name(), String.valueOf(level.getCode()));
@@ -365,14 +371,18 @@ public class TdOmsBuildIfsOmsStep extends Step {
             return levels;
         }
 
+        @RequirePOST
         public FormValidation doCheckRelativePath(@QueryParameter String value) {
+            checkReadPermission();
             if (value == null || value.trim().isEmpty()) {
                 return FormValidation.error("Relative path is required");
             }
             return FormValidation.ok();
         }
 
+        @RequirePOST
         public ListBoxModel doFillServerItems(@AncestorInPath Item item) {
+            checkReadPermission();
             ListBoxModel servers = new ListBoxModel();
             servers.add("-- Inherit from enclosing onIBMi block --", "");
             if (item != null && item.hasPermission(Item.EXTENDED_READ)) {
@@ -381,6 +391,13 @@ public class TdOmsBuildIfsOmsStep extends Step {
                 }
             }
             return servers;
+        }
+
+        private static void checkReadPermission() {
+            Jenkins jenkins = Jenkins.getInstanceOrNull();
+            if (jenkins != null) {
+                jenkins.checkPermission(Jenkins.READ);
+            }
         }
     }
 }

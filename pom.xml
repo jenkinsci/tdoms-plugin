@@ -7,19 +7,19 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>5.7</version>
+        <version>6.2211.v27f680c93c53</version>
         <relativePath />
     </parent>
 
     <groupId>io.jenkins.plugins</groupId>
-    <artifactId>td-oms-jenkins-plugin</artifactId>
+    <artifactId>tdoms</artifactId>
     <version>${changelist}</version>
     <packaging>hpi</packaging>
 
     <name>TD/OMS Integration Plugin</name>
     <inceptionYear>2026</inceptionYear>
     <description>Jenkins plugin for TD/OMS on IBM i to push changed sources to IFS and trigger deployments.</description>
-    <url>https://github.com/${gitHubRepo}</url>
+    <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
     <scm>
         <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
@@ -35,9 +35,14 @@
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>RemainSoftware/omsjenkins</gitHubRepo>
-        <jenkins.baseline>2.528</jenkins.baseline>
+        <jenkins.baseline>2.541</jenkins.baseline>
         <jenkins.version>${jenkins.baseline}.3</jenkins.version>
-        <java.level>17</java.level>
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+        <hpi.bundledArtifacts>jt400</hpi.bundledArtifacts>
+        <banObsoleteDependencyOverrides.skip>false</banObsoleteDependencyOverrides.skip>
+        <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
+        <ban-deprecated-stapler.skip>false</ban-deprecated-stapler.skip>
+        <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
     </properties>
 
     <licenses>
@@ -47,62 +52,54 @@
         </license>
     </licenses>
 
-    <developers>
-        <developer>
-            <id>wimjongman</id>
-            <name>Wim Jongman</name>
-        </developer>
-    </developers>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-2.541.x</artifactId>
+                <version>7002.v028a_3607ddc8</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>724.v538c2362b_dfb_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>1400.v7fd111b_ec82f</version>
-            <type>hpi</type>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1496.vf6821f162d4e</version>
-            <type>hpi</type>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-credentials</artifactId>
-            <version>322.v124df57ed808</version>
-            <type>hpi</type>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git-client</artifactId>
-            <version>4.7.0</version>
-            <type>hpi</type>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>362.va_b_695ef4fdf9</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>ionicons-api</artifactId>
-            <version>94.vcc3065403257</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>2.141.v284120fd0c46</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>caffeine-api</artifactId>
-            <version>3.1.8-133.v17b_1ff2e0599</version>
         </dependency>
         <dependency>
             <groupId>jakarta.servlet</groupId>
@@ -151,7 +148,6 @@
                 <artifactId>maven-hpi-plugin</artifactId>
                 <configuration>
                     <disabledTestInjection>true</disabledTestInjection>
-                    <overrideVersions>org.jenkins-ci.plugins:credentials:1496.vf6821f162d4e</overrideVersions>
                 </configuration>
             </plugin>
         </plugins>

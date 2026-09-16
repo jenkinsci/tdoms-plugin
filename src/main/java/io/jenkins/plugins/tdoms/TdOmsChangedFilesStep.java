@@ -11,6 +11,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import io.jenkins.plugins.tdoms.git.GitDiffResolver;
 import io.jenkins.plugins.tdoms.model.ChangedFile;
 import io.jenkins.plugins.tdoms.util.TdOmsLogLevel;
@@ -24,6 +25,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -148,7 +150,9 @@ public class TdOmsChangedFilesStep extends Step {
             return Collections.unmodifiableSet(context);
         }
 
+        @RequirePOST
         public ListBoxModel doFillLogLevelItems() {
+            checkReadPermission();
             ListBoxModel levels = new ListBoxModel();
             for (TdOmsLogLevel level : TdOmsLogLevel.values()) {
                 levels.add(level.getCode() + " - " + level.name(), String.valueOf(level.getCode()));
@@ -156,7 +160,9 @@ public class TdOmsChangedFilesStep extends Step {
             return levels;
         }
 
+        @RequirePOST
         public ListBoxModel doFillGitCredentialsIdItems(@AncestorInPath Item item, @QueryParameter String gitCredentialsId) {
+            checkReadPermission();
             StandardListBoxModel result = new StandardListBoxModel();
             if (item == null || !item.hasPermission(Item.EXTENDED_READ)) {
                 return result.includeCurrentValue(gitCredentialsId);
@@ -165,6 +171,13 @@ public class TdOmsChangedFilesStep extends Step {
                     .includeEmptyValue()
                     .includeAs(ACL.SYSTEM2, item, StandardUsernamePasswordCredentials.class, URIRequirementBuilder.fromUri("").build())
                     .includeCurrentValue(gitCredentialsId);
+        }
+
+        private static void checkReadPermission() {
+            Jenkins jenkins = Jenkins.getInstanceOrNull();
+            if (jenkins != null) {
+                jenkins.checkPermission(Jenkins.READ);
+            }
         }
     }
 }
