@@ -11,8 +11,6 @@ This Jenkins plugin provides Pipeline steps for TD/OMS on IBM i.
 
 ## Requirements
 
-- Jenkins 2.528.3 or newer
-- Java 17 or newer
 - The Jenkins [IBM i Steps plugin](https://plugins.jenkins.io/ibmi-steps/)
 - A TD/OMS installation and an IBM i server configured in Jenkins
 

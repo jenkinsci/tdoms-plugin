@@ -15,7 +15,6 @@ import jenkins.model.Jenkins;
 import io.jenkins.plugins.tdoms.git.GitDiffResolver;
 import io.jenkins.plugins.tdoms.model.ChangedFile;
 import io.jenkins.plugins.tdoms.util.TdOmsLogLevel;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -101,23 +100,24 @@ public class TdOmsChangedFilesStep extends Step {
             PrintStream logger = listener.getLogger();
             TdOmsLogLevel level = TdOmsLogLevel.parse(step.getLogLevel());
 
-            org.eclipse.jgit.transport.CredentialsProvider gitCredentialsProvider = null;
+                String gitUsername = null;
+                String gitPassword = null;
             if (step.getGitCredentialsId() != null && !step.getGitCredentialsId().trim().isEmpty()) {
                 StandardUsernamePasswordCredentials gitCredentials = CredentialsProvider.findCredentialById(
                         step.getGitCredentialsId(), StandardUsernamePasswordCredentials.class, run);
                 if (gitCredentials != null) {
-                    gitCredentialsProvider = new UsernamePasswordCredentialsProvider(
-                            gitCredentials.getUsername(), gitCredentials.getPassword().getPlainText());
+                    gitUsername = gitCredentials.getUsername();
+                    gitPassword = gitCredentials.getPassword().getPlainText();
                 } else {
                     level.println(logger, TdOmsLogLevel.WARNING,
                             "Warning: gitCredentialsId '" + step.getGitCredentialsId() + "' did not resolve to any credentials.");
                 }
             }
 
-                List<String> changedFiles = GitDiffResolver.getChangedFiles(
-                    workspace, step.getCompareBranch(), listener, gitCredentialsProvider, level);
+            List<String> changedFiles = GitDiffResolver.getChangedFiles(
+                    workspace, step.getCompareBranch(), listener, gitUsername, gitPassword, level);
 
-                level.println(logger, TdOmsLogLevel.INFO,
+            level.println(logger, TdOmsLogLevel.INFO,
                     "TD/OMS: Found " + changedFiles.size() + " changed file(s) against " + step.getCompareBranch());
 
             List<Map<String, String>> result = new ArrayList<>();

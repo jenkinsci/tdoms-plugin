@@ -3,6 +3,7 @@ package io.jenkins.plugins.tdoms.git;
 import hudson.FilePath;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.tdoms.util.TdOmsLogLevel;
+import jenkins.agents.ControllerToAgentFileCallable;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -14,47 +15,61 @@ import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 public class GitDiffResolver {
 
     public static List<String> getChangedFiles(FilePath workspace, String compareBranch, TaskListener listener) throws IOException, InterruptedException {
-        return getChangedFiles(workspace, compareBranch, listener, null);
+        return getChangedFiles(workspace, compareBranch, listener, null, null, TdOmsLogLevel.DEFAULT);
     }
 
     public static List<String> getChangedFiles(FilePath workspace, String compareBranch, TaskListener listener,
-                                                CredentialsProvider credentialsProvider) throws IOException, InterruptedException {
-        return getChangedFiles(workspace, compareBranch, listener, credentialsProvider, TdOmsLogLevel.DEFAULT);
-    }
-
-    public static List<String> getChangedFiles(FilePath workspace, String compareBranch, TaskListener listener,
-                                                CredentialsProvider credentialsProvider, TdOmsLogLevel level) throws IOException, InterruptedException {
+                                                String username, String password, TdOmsLogLevel level) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
-        List<String> changedFiles = new ArrayList<>();
+        Resolution resolution;
+        try {
+            resolution = workspace.act(new ResolveGitDiff(compareBranch, username, password));
+        } catch (IOException e) {
+            level.println(logger, TdOmsLogLevel.ERROR, "Error resolving Git diff: " + e.getMessage());
+            throw e;
+        }
+        for (LogEntry entry : resolution.logs) {
+            level.println(logger, entry.level, entry.message);
+        }
+        return resolution.changedFiles;
+    }
 
-        File gitDir = new File(workspace.getRemote(), ".git");
+    private static Resolution resolve(File workspace, String compareBranch, String username, String password)
+            throws IOException {
+        List<String> changedFiles = new ArrayList<>();
+        List<LogEntry> logs = new ArrayList<>();
+
+        File gitDir = new File(workspace, ".git");
         if (!gitDir.exists()) {
-                level.println(logger, TdOmsLogLevel.WARNING,
-                    "Warning: .git directory not found in workspace at " + workspace.getRemote());
-            return changedFiles;
+            logs.add(new LogEntry(TdOmsLogLevel.WARNING,
+                    "Warning: .git directory not found in workspace at " + workspace));
+            return new Resolution(changedFiles, logs);
         }
 
-        try (Git git = Git.open(new File(workspace.getRemote()))) {
+        try (Git git = Git.open(workspace)) {
             Repository repository = git.getRepository();
 
             ObjectId headId = repository.resolve("HEAD");
             ObjectId compareId = repository.resolve(compareBranch);
 
             if (headId == null) {
-                level.println(logger, TdOmsLogLevel.WARNING, "Warning: Cannot resolve HEAD in repository.");
-                return changedFiles;
+                logs.add(new LogEntry(TdOmsLogLevel.WARNING, "Warning: Cannot resolve HEAD in repository."));
+                return new Resolution(changedFiles, logs);
             }
 
             if (compareId == null) {
@@ -67,20 +82,23 @@ public class GitDiffResolver {
                 // Common cause: multibranch pipelines only fetch the refspec for the branch being
                 // built, so remote-tracking refs like 'origin/master' are never present locally.
                 // Try an on-demand fetch of the missing branch before giving up.
-                level.println(logger, TdOmsLogLevel.DEBUG,
-                    "Compare ref '" + compareBranch + "' not found locally. Attempting to fetch it from remote...");
-                compareId = fetchAndResolve(git, repository, compareBranch, credentialsProvider, logger, level);
+                logs.add(new LogEntry(TdOmsLogLevel.DEBUG,
+                        "Compare ref '" + compareBranch + "' not found locally. Attempting to fetch it from remote..."));
+                CredentialsProvider credentialsProvider = username == null
+                        ? null
+                        : new UsernamePasswordCredentialsProvider(username, password == null ? "" : password);
+                compareId = fetchAndResolve(git, repository, compareBranch, credentialsProvider, logs);
             }
 
             if (compareId == null) {
-                level.println(logger, TdOmsLogLevel.WARNING,
-                    "Warning: Cannot resolve compare branch '" + compareBranch + "'. Returning empty diff.");
-                level.println(logger, TdOmsLogLevel.DEBUG,
-                    "Hint: ensure the checkout fetches this branch, e.g. add a refspec such as "
+                logs.add(new LogEntry(TdOmsLogLevel.WARNING,
+                        "Warning: Cannot resolve compare branch '" + compareBranch + "'. Returning empty diff."));
+                logs.add(new LogEntry(TdOmsLogLevel.DEBUG,
+                        "Hint: ensure the checkout fetches this branch, e.g. add a refspec such as "
                         + "'+refs/heads/*:refs/remotes/origin/*' to the SCM configuration, run "
                         + "'git fetch origin " + branchNameOf(compareBranch) + "' before this step, or set "
-                        + "'gitCredentialsId' on tdOmsChangedFiles so the on-demand fetch can authenticate.");
-                return changedFiles;
+                        + "'gitCredentialsId' on tdOmsChangedFiles so the on-demand fetch can authenticate."));
+                return new Resolution(changedFiles, logs);
             }
 
             AbstractTreeIterator oldTreeParser = prepareTreeParser(repository, compareId);
@@ -100,11 +118,10 @@ public class GitDiffResolver {
                 }
             }
         } catch (Exception e) {
-            level.println(logger, TdOmsLogLevel.ERROR, "Error resolving Git diff: " + e.getMessage());
             throw new IOException("Failed to resolve git diff against " + compareBranch, e);
         }
 
-        return changedFiles;
+        return new Resolution(changedFiles, logs);
     }
 
     public static boolean isEligibleSourceFile(String path) {
@@ -136,8 +153,7 @@ public class GitDiffResolver {
      * and treated as "still unresolved" rather than aborting the step.
      */
     private static ObjectId fetchAndResolve(Git git, Repository repository, String compareBranch,
-                                             CredentialsProvider credentialsProvider, PrintStream logger,
-                                             TdOmsLogLevel level) {
+                                             CredentialsProvider credentialsProvider, List<LogEntry> logs) {
         String remoteName = compareBranch.contains("/") ? compareBranch.substring(0, compareBranch.indexOf('/')) : "origin";
         String branchName = branchNameOf(compareBranch);
         try {
@@ -150,8 +166,8 @@ public class GitDiffResolver {
             fetch.call();
             return repository.resolve(remoteName + "/" + branchName);
         } catch (Exception e) {
-                level.println(logger, TdOmsLogLevel.WARNING,
-                    "Warning: On-demand fetch of '" + compareBranch + "' failed: " + e.getMessage());
+            logs.add(new LogEntry(TdOmsLogLevel.WARNING,
+                "Warning: On-demand fetch of '" + compareBranch + "' failed: " + e.getMessage()));
             return null;
         }
     }
@@ -171,6 +187,52 @@ public class GitDiffResolver {
             }
             walk.dispose();
             return treeParser;
+        }
+    }
+
+    private static final class ResolveGitDiff implements ControllerToAgentFileCallable<Resolution> {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private final String compareBranch;
+        private final String username;
+        private final String password;
+
+        private ResolveGitDiff(String compareBranch, String username, String password) {
+            this.compareBranch = compareBranch;
+            this.username = username;
+            this.password = password;
+        }
+
+        @Override
+        public Resolution invoke(File workspace, hudson.remoting.VirtualChannel channel) throws IOException {
+            return resolve(workspace, compareBranch, username, password);
+        }
+    }
+
+    private static final class Resolution implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private final List<String> changedFiles;
+        private final List<LogEntry> logs;
+
+        private Resolution(List<String> changedFiles, List<LogEntry> logs) {
+            this.changedFiles = changedFiles;
+            this.logs = logs;
+        }
+    }
+
+    private static final class LogEntry implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private final TdOmsLogLevel level;
+        private final String message;
+
+        private LogEntry(TdOmsLogLevel level, String message) {
+            this.level = level;
+            this.message = message;
         }
     }
 }
