@@ -3,6 +3,7 @@ work/
 .idea/
 .vscode/
 .github/agents/
+.agents/skills/
 *.iml
 .classpath
 .project
