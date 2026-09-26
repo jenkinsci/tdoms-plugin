@@ -49,6 +49,7 @@ public class TdOmsBuildIfsOmsStep extends Step {
     public static final String DEFAULT_ROUTE_CODE = "*REG";
     public static final String DEFAULT_CONNECT_STREAM_FILE = "*REG";
     public static final String DEFAULT_COPY_TO_SOURCE_FILE = "*REG";
+    public static final String DEFAULT_CONNECT_OBJECT = "*YES";
     public static final int DEFAULT_CCSID = 1208;
     public static final String DEFAULT_ADD_TO_BUILD_QUEUE = "*NO";
     public static final String DEFAULT_RELEASE_BUILD_QUEUE = "*NO";
@@ -56,13 +57,15 @@ public class TdOmsBuildIfsOmsStep extends Step {
     private String server;
     private String targetPath;
     private String relativePath;
-    private String action = DEFAULT_ACTION;
     private String branch;
     private String application = DEFAULT_APPLICATION;
     private String task = DEFAULT_TASK;
     private String routeCode = DEFAULT_ROUTE_CODE;
     private String connectStreamFile = DEFAULT_CONNECT_STREAM_FILE;
+    private String streamFileLabels;
     private String copyToSourceFile = DEFAULT_COPY_TO_SOURCE_FILE;
+    private String connectObject = DEFAULT_CONNECT_OBJECT;
+    private String objectLabels;
     private int ccsid = DEFAULT_CCSID;
     private String addToBuildQueue = DEFAULT_ADD_TO_BUILD_QUEUE;
     private String releaseBuildQueue = DEFAULT_RELEASE_BUILD_QUEUE;
@@ -97,15 +100,6 @@ public class TdOmsBuildIfsOmsStep extends Step {
     @DataBoundSetter
     public void setRelativePath(String relativePath) {
         this.relativePath = relativePath;
-    }
-
-    public String getAction() {
-        return action;
-    }
-
-    @DataBoundSetter
-    public void setAction(String action) {
-        this.action = action;
     }
 
     public String getBranch() {
@@ -153,6 +147,15 @@ public class TdOmsBuildIfsOmsStep extends Step {
         this.connectStreamFile = connectStreamFile;
     }
 
+    public String getStreamFileLabels() {
+        return streamFileLabels;
+    }
+
+    @DataBoundSetter
+    public void setStreamFileLabels(String streamFileLabels) {
+        this.streamFileLabels = streamFileLabels;
+    }
+
     public String getCopyToSourceFile() {
         return copyToSourceFile;
     }
@@ -160,6 +163,24 @@ public class TdOmsBuildIfsOmsStep extends Step {
     @DataBoundSetter
     public void setCopyToSourceFile(String copyToSourceFile) {
         this.copyToSourceFile = copyToSourceFile;
+    }
+
+    public String getConnectObject() {
+        return connectObject;
+    }
+
+    @DataBoundSetter
+    public void setConnectObject(String connectObject) {
+        this.connectObject = connectObject;
+    }
+
+    public String getObjectLabels() {
+        return objectLabels;
+    }
+
+    @DataBoundSetter
+    public void setObjectLabels(String objectLabels) {
+        this.objectLabels = objectLabels;
     }
 
     public int getCcsid() {
@@ -205,16 +226,66 @@ public class TdOmsBuildIfsOmsStep extends Step {
 
     static String normalizeRelativePath(String value) {
         if (value == null || value.trim().isEmpty()) {
-            throw new IllegalArgumentException("bldIfsOms requires a 'relativePath' parameter.");
+            throw new IllegalArgumentException("omsPush requires a 'relativePath' parameter.");
         }
 
         String normalized = value.trim().replace('\\', '/');
         Path path = Paths.get(normalized).normalize();
         if (path.isAbsolute() || normalized.startsWith("/") || normalized.matches("^[A-Za-z]:/.*")
                 || path.startsWith("..")) {
-            throw new IllegalArgumentException("bldIfsOms requires a workspace-relative 'relativePath'.");
+            throw new IllegalArgumentException("omsPush requires a workspace-relative 'relativePath'.");
         }
         return path.toString().replace('\\', '/');
+    }
+
+    static String buildCommand(TdOmsBuildIfsOmsStep step, String relativePath) {
+        String streamFileLabels = formatLabels("LBLSTMF", step.getStreamFileLabels());
+        String objectLabels = formatLabels("LBLOBJ", step.getObjectLabels());
+
+        return String.format(
+                "BLDIFSOMS ACTC(*PUSH)%s ROTC(%s) STMF('%s') DIR('%s') "
+                        + "CONSTMF(%s)%s CPYTOSRCF(%s) CONOBJ(%s)%s CCSID(%d) ADDTOBQ(%s) RLSBQ(%s)",
+                TdOmsCommandScope.format(step.getBranch(), step.getApplication(), step.getTask()),
+                valueOrDefault(step.getRouteCode(), DEFAULT_ROUTE_CODE),
+                escapeClValue(relativePath.replace('\\', '/')),
+                escapeClValue(step.getTargetPath()),
+                valueOrDefault(step.getConnectStreamFile(), DEFAULT_CONNECT_STREAM_FILE),
+                streamFileLabels,
+                valueOrDefault(step.getCopyToSourceFile(), DEFAULT_COPY_TO_SOURCE_FILE),
+                valueOrDefault(step.getConnectObject(), DEFAULT_CONNECT_OBJECT),
+                objectLabels,
+                step.getCcsid(),
+                valueOrDefault(step.getAddToBuildQueue(), DEFAULT_ADD_TO_BUILD_QUEUE),
+                valueOrDefault(step.getReleaseBuildQueue(), DEFAULT_RELEASE_BUILD_QUEUE));
+    }
+
+    private static String formatLabels(String keyword, String labels) {
+        if (labels == null || labels.trim().isEmpty()) {
+            return "";
+        }
+
+        String[] values = labels.split(",", -1);
+        if (values.length > 5) {
+            throw new IllegalArgumentException(keyword + " accepts at most five comma-separated labels.");
+        }
+
+        StringBuilder formatted = new StringBuilder(" ").append(keyword).append("(");
+        for (String value : values) {
+            String label = value.trim();
+            if (label.isEmpty()) {
+                throw new IllegalArgumentException(keyword + " labels must not be blank.");
+            }
+            formatted.append("('").append(escapeClValue(label)).append("')");
+        }
+        return formatted.append(")").toString();
+    }
+
+    private static String valueOrDefault(String value, String defaultValue) {
+        return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
+    }
+
+    private static String escapeClValue(String value) {
+        return value == null ? "" : value.replace("'", "''");
     }
 
     private static class Execution extends SynchronousNonBlockingStepExecution<Void> {
@@ -238,8 +309,9 @@ public class TdOmsBuildIfsOmsStep extends Step {
 
             String relativePath = TdOmsBuildIfsOmsStep.normalizeRelativePath(step.getRelativePath());
             if (step.getTargetPath() == null || step.getTargetPath().trim().isEmpty()) {
-                throw new IllegalArgumentException("bldIfsOms requires a 'targetPath' parameter.");
+                throw new IllegalArgumentException("omsPush requires a 'targetPath' parameter.");
             }
+            String bldCmd = TdOmsBuildIfsOmsStep.buildCommand(step, relativePath);
 
             IBMiContext ibmiContext = ctx.get(IBMiContext.class);
             boolean standalone = false;
@@ -247,7 +319,7 @@ public class TdOmsBuildIfsOmsStep extends Step {
             if (ibmiContext == null) {
                 if (step.getServer() == null || step.getServer().trim().isEmpty()) {
                     throw new IllegalArgumentException(
-                            "bldIfsOms requires either an active 'onIBMi' block or 'server' parameter.");
+                            "omsPush requires either an active 'onIBMi' block or 'server' parameter.");
                 }
 
                 IBMiServerConfiguration serverConfig = IBMiGlobalConfiguration.get().getServer(step.getServer());
@@ -285,21 +357,6 @@ public class TdOmsBuildIfsOmsStep extends Step {
 
                 ibmi.upload(localFilePath, remoteIFSFile, 1208);
 
-                String bldCmd = String.format(
-                        "BLDIFSOMS ACTC(%s) BRANCH('%s') APPC(%s) TASK(%s) ROTC(%s) STMF('%s') DIR('%s') "
-                                + "CONSTMF(%s) CPYTOSRCF(%s) CCSID(%d) ADDTOBQ(%s) RLSBQ(%s)",
-                        valueOrDefault(step.getAction(), DEFAULT_ACTION),
-                        escapeClValue(step.getBranch()),
-                        valueOrDefault(step.getApplication(), DEFAULT_APPLICATION),
-                        valueOrDefault(step.getTask(), DEFAULT_TASK),
-                        valueOrDefault(step.getRouteCode(), DEFAULT_ROUTE_CODE),
-                        escapeClValue(relativePath.replace('\\', '/')),
-                        escapeClValue(step.getTargetPath()),
-                        valueOrDefault(step.getConnectStreamFile(), DEFAULT_CONNECT_STREAM_FILE),
-                        valueOrDefault(step.getCopyToSourceFile(), DEFAULT_COPY_TO_SOURCE_FILE),
-                        step.getCcsid(),
-                        valueOrDefault(step.getAddToBuildQueue(), DEFAULT_ADD_TO_BUILD_QUEUE),
-                        valueOrDefault(step.getReleaseBuildQueue(), DEFAULT_RELEASE_BUILD_QUEUE));
                 CallResult result = ibmi.executeCommand(bldCmd);
                 level.println(logger, TdOmsLogLevel.INFO, "Running: " + bldCmd);
 
@@ -321,13 +378,6 @@ public class TdOmsBuildIfsOmsStep extends Step {
             return null;
         }
 
-        private static String valueOrDefault(String value, String defaultValue) {
-            return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
-        }
-
-        private static String escapeClValue(String value) {
-            return value == null ? "" : value.replace("'", "''");
-        }
     }
 
     @Extension

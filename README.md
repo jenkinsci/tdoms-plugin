@@ -19,7 +19,7 @@ This Jenkins plugin provides Pipeline steps for TD/OMS on IBM i.
 
 `omsChangedFiles` returns changed files relative to a comparison branch.
 
-`omsPush` uploads one workspace file to IFS and invokes `BLDIFSOMS` for it. It can use an enclosing `onIBMi` block or a configured server supplied through the `server` parameter.
+`omsPush` uploads one workspace file to IFS and invokes `BLDIFSOMS ACTC(*PUSH)` for it. It can use an enclosing `onIBMi` block or a configured server supplied through the `server` parameter. `omsReleaseBuildQ` and `omsDeploy` invoke `BLDIFSOMS ACTC(*RLSBQ)` and `BLDIFSOMS ACTC(*DEPLOY)` respectively, without uploading files. Both command-only steps must run inside `onIBMi` and accept only `branch`, `application`, and `task`.
 
 ### Example
 
@@ -37,6 +37,8 @@ pipeline {
                       relativePath: file.relativePath,
                       branch: env.BRANCH_NAME ?: env.GIT_BRANCH
             }
+            omsReleaseBuildQ branch: env.BRANCH_NAME ?: env.GIT_BRANCH
+            omsDeploy branch: env.BRANCH_NAME ?: env.GIT_BRANCH
           }
         }
       }
@@ -49,12 +51,21 @@ pipeline {
 
 Configure IBM i server profiles under **Manage Jenkins > System > IBM i Servers**. Use Jenkins credentials for authentication.
 
-The BLDIFSOMS options include `action`, `branch`, `application`, `task`, `routeCode`, `connectStreamFile`, `copyToSourceFile`, `ccsid`, `addToBuildQueue`, `releaseBuildQueue`, and `logLevel`. Defaults are defined by the Pipeline step descriptor.
+The `omsPush` options include `branch`, `application`, `task`, `routeCode`, `connectStreamFile`, `streamFileLabels`, `copyToSourceFile`, `connectObject`, `objectLabels`, `ccsid`, `addToBuildQueue`, `releaseBuildQueue`, and `logLevel`. `streamFileLabels` and `objectLabels` accept up to five comma-separated labels. `connectObject` defaults to `*YES` and supports `*YES`, `*NO`, `*VIRTUAL`, and `*MEMBER`; the other defaults are defined by the Pipeline step descriptor.
+
+For all three steps, `application` and `task` default to `*CALC`. Supply `branch` unless both `application` and `task` are explicitly set to values other than `*CALC`; when omitted, `BRANCH` is not sent. Action codes are fixed by the step. Existing Pipeline calls with `omsPush action: ...` must switch to the corresponding step; calls with default application and task must supply a branch.
 
 ## Development
 
 ```powershell
 mvn -B clean verify
+```
+
+## Local Test
+Spins up a jenins instance with this plugin available.
+
+```powershell
+mvn hpi:run
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidance and [SECURITY.md](SECURITY.md) for vulnerability reporting.
