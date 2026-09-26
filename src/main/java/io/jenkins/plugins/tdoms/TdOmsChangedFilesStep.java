@@ -37,7 +37,7 @@ import java.util.Set;
 /**
  * Resolves the set of source files changed relative to a compare branch, returning them as a
  * list so that pipeline scripts can decide what to do with each one (e.g. call
- * {@code bldIfsOms} per entry).
+ * {@code omsPush} per entry).
  */
 public class TdOmsChangedFilesStep extends Step {
 

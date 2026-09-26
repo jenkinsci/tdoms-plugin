@@ -9,9 +9,6 @@
     <f:entry title="Relative Path" field="relativePath">
         <f:textbox />
     </f:entry>
-    <f:entry title="Action" field="action">
-        <f:textbox default="*PUSH" />
-    </f:entry>
     <f:entry title="Branch" field="branch">
         <f:textbox />
     </f:entry>
@@ -27,8 +24,17 @@
     <f:entry title="Connect Stream File" field="connectStreamFile">
         <f:textbox default="*REG" />
     </f:entry>
+    <f:entry title="Stream File Labels (LBLSTMF, comma-separated; max 5)" field="streamFileLabels">
+        <f:textbox />
+    </f:entry>
     <f:entry title="Copy to Source File" field="copyToSourceFile">
         <f:textbox default="*REG" />
+    </f:entry>
+    <f:entry title="Connect Object to Task (CONOBJ)" field="connectObject">
+        <f:textbox default="*YES" />
+    </f:entry>
+    <f:entry title="Object Labels (LBLOBJ, comma-separated; max 5)" field="objectLabels">
+        <f:textbox />
     </f:entry>
     <f:entry title="CCSID" field="ccsid">
         <f:number default="1208" />
