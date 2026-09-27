@@ -18,6 +18,15 @@ This Jenkins plugin provides Pipeline steps for TD/OMS on IBM i.
 ## Pipeline steps
 
 `omsChangedFiles` returns changed files relative to a comparison branch.
+Each returned item is a map with these string values:
+
+| Key | Description |
+| --- | --- |
+| `fileName` | File name without its directory path. |
+| `relativePath` | Path to the file relative to the workspace. |
+| `extension` | File extension without the dot, or an empty string if there is none. |
+| `isRootFile` | `"true"` if the file is in the workspace root, otherwise `"false"`. |
+| `isHidden` | `"true"` if any file or directory name in the path starts with a dot, otherwise `"false"`. |
 
 `omsPush` uploads one workspace file to IFS and invokes `BLDIFSOMS ACTC(*PUSH)` for it. It can use an enclosing `onIBMi` block or a configured server supplied through the `server` parameter. `omsReleaseBuildQ` and `omsDeploy` invoke `BLDIFSOMS ACTC(*RLSBQ)` and `BLDIFSOMS ACTC(*DEPLOY)` respectively, without uploading files. Both command-only steps must run inside `onIBMi` and accept only `branch`, `application`, and `task`.
 

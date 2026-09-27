@@ -1,11 +1,13 @@
 package io.jenkins.plugins.tdoms.model;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A single changed source file, split into fileName / relativePath / extension for convenience
+ * A single changed source file, split into fileName / relativePath / extension
+ * for convenience
  * in pipeline scripts.
  */
 public final class ChangedFile implements Serializable {
@@ -38,12 +40,26 @@ public final class ChangedFile implements Serializable {
         return extension;
     }
 
-    /** Returned to pipeline scripts as a plain Map so it can be used without sandbox approval. */
+    /**
+     * Returned to pipeline scripts as a plain Map so it can be used without sandbox
+     * approval.
+     */
     public Map<String, String> toMap() {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("fileName", fileName);
         map.put("relativePath", relativePath);
         map.put("extension", extension);
+        String normalizedPath = relativePath.replace('\\', '/');
+        String platformPath = normalizedPath.replace('/', File.separatorChar);
+        map.put("isRootFile", platformPath.contains(File.separator) ? "false" : "true");
+        boolean isHidden = false;
+        for (String pathComponent : normalizedPath.split("/")) {
+            if (pathComponent.startsWith(".") && !pathComponent.equals(".") && !pathComponent.equals("..")) {
+                isHidden = true;
+                break;
+            }
+        }
+        map.put("isHidden", isHidden ? "true" : "false");
         return map;
     }
 }
