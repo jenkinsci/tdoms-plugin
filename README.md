@@ -113,7 +113,7 @@ mvn -B clean verify
 ```
 
 ## Local Test
-Spins up a jenins instance with this plugin available.
+Spins up a jenkins instance with this plugin available.
 
 ```powershell
 mvn hpi:run
