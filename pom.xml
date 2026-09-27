@@ -29,12 +29,12 @@
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/RemainSoftware/omsjenkins/issues</url>
+        <url>https://github.com/${gitHubRepo}/issues</url>
     </issueManagement>
 
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <gitHubRepo>RemainSoftware/omsjenkins</gitHubRepo>
+        <gitHubRepo>jenkinsci/tdoms-plugin</gitHubRepo>
         <jenkins.baseline>2.541</jenkins.baseline>
         <jenkins.version>${jenkins.baseline}.3</jenkins.version>
         <banObsoleteDependencyOverrides.skip>false</banObsoleteDependencyOverrides.skip>
