@@ -22,34 +22,6 @@ This Jenkins plugin provides Pipeline steps for TD/OMS on IBM i.
 `omsPush` uploads one workspace file to IFS and invokes `BLDIFSOMS ACTC(*PUSH)` for it. It can use an enclosing `onIBMi` block or a configured server supplied through the `server` parameter. `omsReleaseBuildQ` and `omsDeploy` invoke `BLDIFSOMS ACTC(*RLSBQ)` and `BLDIFSOMS ACTC(*DEPLOY)` respectively, without uploading files. Both command-only steps must run inside `onIBMi` and accept only `branch`, `application`, and `task`.
 
 ### Example
-
-```groovy
-I’ll trace the current pipeline examples and step APIs around `TdOmsBuildIfsOmsStep.java`, then update the script at its owning file and run the narrowest available validation.
-
-Searched codebase for "Find the Jenkins pipeline script matching Build & Deploy TD/OMS, omsChangedFiles, omsPush, BLDIFSOMS, and identify the latest intended pipeline syntax and examples.", 6 results
-
-The current API has dedicated `omsReleaseBuildQ` and `omsDeploy` steps, so the raw `ibmiCommand "BLDIFSOMS ..."` calls are the likely obsolete part. I’m checking the repository’s canonical Jenkinsfile and tests to confirm the exact changed-files step name before editing.
-
-Searched for regex `tdOmsChangedFiles|omsChangedFiles|omsReleaseBuildQ|omsDeploy` (`**/src/test/**`), 4 results
-
-Searched for files matching `**/src/main/java/**/*Release*Step.java`, 1 match
-
-Read 
-
-Read , lines 35 to 160
-
-Confirmed the public DSL name is `omsChangedFiles` (not the stale `tdOmsChangedFiles` name in part of the summary). The migration can preserve the per-extension push behavior while replacing the release and deploy commands with their typed pipeline steps.
-
-Read 
-
-Read 
-
-Read , lines 90 to 145
-
-Read , lines 35 to 80
-
-Updated for the latest pipeline steps. `omsReleaseBuildQ` and `omsDeploy` replace the raw `BLDIFSOMS` commands. INFO is now the default log level.
-
 ```groovy
 pipeline {
   agent any
@@ -124,8 +96,6 @@ pipeline {
     }
   }
 }
-```
-
 ```
 
 ## Configuration
