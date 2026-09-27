@@ -24,27 +24,108 @@ This Jenkins plugin provides Pipeline steps for TD/OMS on IBM i.
 ### Example
 
 ```groovy
+I’ll trace the current pipeline examples and step APIs around `TdOmsBuildIfsOmsStep.java`, then update the script at its owning file and run the narrowest available validation.
+
+Searched codebase for "Find the Jenkins pipeline script matching Build & Deploy TD/OMS, omsChangedFiles, omsPush, BLDIFSOMS, and identify the latest intended pipeline syntax and examples.", 6 results
+
+The current API has dedicated `omsReleaseBuildQ` and `omsDeploy` steps, so the raw `ibmiCommand "BLDIFSOMS ..."` calls are the likely obsolete part. I’m checking the repository’s canonical Jenkinsfile and tests to confirm the exact changed-files step name before editing.
+
+Searched for regex `tdOmsChangedFiles|omsChangedFiles|omsReleaseBuildQ|omsDeploy` (`**/src/test/**`), 4 results
+
+Searched for files matching `**/src/main/java/**/*Release*Step.java`, 1 match
+
+Read 
+
+Read , lines 35 to 160
+
+Confirmed the public DSL name is `omsChangedFiles` (not the stale `tdOmsChangedFiles` name in part of the summary). The migration can preserve the per-extension push behavior while replacing the release and deploy commands with their typed pipeline steps.
+
+Read 
+
+Read 
+
+Read , lines 90 to 145
+
+Read , lines 35 to 80
+
+Updated for the latest pipeline steps. `omsReleaseBuildQ` and `omsDeploy` replace the raw `BLDIFSOMS` commands. INFO is now the default log level.
+
+```groovy
 pipeline {
   agent any
+
+  options {
+    timestamps()
+  }
+
+  parameters {
+    string(name: 'IBMI_SERVER', defaultValue: 'Plato', description: 'IBM i server profile name configured in Jenkins')
+    string(name: 'TARGET_PATH', defaultValue: '/tmp/remain/jenkins/upload', description: 'IFS path for uploads')
+    string(name: 'COMPARE_BRANCH', defaultValue: 'origin/master', description: 'Branch to compare against for changed files')
+    choice(name: 'LOG_LEVEL', choices: ['3', '4', '5', '2', '1'], description: 'Minimum TD/OMS log level (1=TRACE, 2=DEBUG, 3=INFO, 4=WARNING, 5=ERROR)')
+  }
+
   stages {
-    stage('Deploy TD/OMS changes') {
+    stage('Build & Deploy TD/OMS') {
       steps {
-        onIBMi('my-ibmi-server') {
+        onIBMi(params.IBMI_SERVER) {
+
+          // Do some initial work
+          ibmiCommand 'CHGENV OMSXMP'
+          ibmiCommand 'ADDLIBLE V19T0081'
+
+          // Push and add to task
           script {
-            def changedFiles = omsChangedFiles compareBranch: 'origin/master', logLevel: '3'
+            def branch = env.BRANCH_NAME ?: env.GIT_BRANCH
+            def changedFiles = omsChangedFiles(
+              compareBranch: params.COMPARE_BRANCH,
+              gitCredentialsId: 'bitbucket-eunice-creds',
+              logLevel: params.LOG_LEVEL
+            )
+
             changedFiles.each { file ->
-              omsPush targetPath: '/QOpenSys/OMSIFS/XMP/GITSRC/DEV',
-                      relativePath: file.relativePath,
-                      branch: env.BRANCH_NAME ?: env.GIT_BRANCH
+              if (file.extension.toLowerCase() in ['rpgle', 'clle', 'sqlrpgle']) {
+                omsPush(
+                  targetPath: params.TARGET_PATH,
+                  relativePath: file.relativePath,
+                  branch: branch,
+                  addToBuildQueue: '*YES',
+                  logLevel: params.LOG_LEVEL
+                )
+              } else if (file.extension.toLowerCase() in ['dspf', 'pnlgrp']) {
+                omsPush(
+                  targetPath: params.TARGET_PATH,
+                  relativePath: file.relativePath,
+                  branch: branch,
+                  copyToSourceFile: '*YES',
+                  addToBuildQueue: '*YES',
+                  logLevel: params.LOG_LEVEL
+                )
+              } else {
+                omsPush(
+                  targetPath: params.TARGET_PATH,
+                  relativePath: file.relativePath,
+                  branch: branch,
+                  connectStreamFile: '*YES',
+                  connectObject: '*NO',
+                  logLevel: params.LOG_LEVEL
+                )
+              }
             }
-            omsReleaseBuildQ branch: env.BRANCH_NAME ?: env.GIT_BRANCH
-            omsDeploy branch: env.BRANCH_NAME ?: env.GIT_BRANCH
+
+            // Release the build queue
+            omsReleaseBuildQ branch: branch
+
+            // Deploy out of development
+            omsDeploy branch: branch
           }
         }
       }
     }
   }
 }
+```
+
 ```
 
 ## Configuration

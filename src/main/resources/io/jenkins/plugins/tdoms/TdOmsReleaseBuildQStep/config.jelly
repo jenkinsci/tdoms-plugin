@@ -9,4 +9,10 @@
     <f:entry title="Task" field="task">
         <f:textbox default="*CALC" />
     </f:entry>
+    <f:entry title="Add to Build Queue" field="addToBuildQueue">
+        <f:textbox default="*NO" />
+    </f:entry>
+    <f:entry title="Release Build Queue" field="releaseBuildQueue">
+        <f:textbox default="*BATCH" />
+    </f:entry>
 </j:jelly>

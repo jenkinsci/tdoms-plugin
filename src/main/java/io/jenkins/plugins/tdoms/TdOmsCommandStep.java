@@ -48,9 +48,14 @@ abstract class TdOmsCommandStep extends Step {
 
     protected abstract String actionCode();
 
+    protected String extraKeywords() {
+        return "";
+    }
+
     static String buildCommand(TdOmsCommandStep step) {
         return "BLDIFSOMS ACTC(" + step.actionCode() + ")"
-                + TdOmsCommandScope.format(step.getBranch(), step.getApplication(), step.getTask());
+                + TdOmsCommandScope.format(step.getBranch(), step.getApplication(), step.getTask())
+                + step.extraKeywords();
     }
 
     @Override

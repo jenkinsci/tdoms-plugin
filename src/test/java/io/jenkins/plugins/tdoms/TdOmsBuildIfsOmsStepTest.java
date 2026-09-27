@@ -113,7 +113,14 @@ class TdOmsBuildIfsOmsStepTest {
 
         assertEquals("BLDIFSOMS ACTC(*DEPLOY) BRANCH('feature''s') APPC(*CALC) TASK(*CALC)",
             TdOmsCommandStep.buildCommand(deploy));
-        assertEquals("BLDIFSOMS ACTC(*RLSBQ) BRANCH('main') APPC(*CALC) TASK(*CALC)",
+        assertEquals("BLDIFSOMS ACTC(*RLSBQ) BRANCH('main') APPC(*CALC) TASK(*CALC) ADDTOBQ(*NO) RLSBQ(*BATCH)",
+            TdOmsCommandStep.buildCommand(release));
+        assertEquals(TdOmsReleaseBuildQStep.DEFAULT_ADD_TO_BUILD_QUEUE, release.getAddToBuildQueue());
+        assertEquals(TdOmsReleaseBuildQStep.DEFAULT_RELEASE_BUILD_QUEUE, release.getReleaseBuildQueue());
+
+        release.setAddToBuildQueue("*TASK");
+        release.setReleaseBuildQueue("*DIRECT");
+        assertEquals("BLDIFSOMS ACTC(*RLSBQ) BRANCH('main') APPC(*CALC) TASK(*CALC) ADDTOBQ(*TASK) RLSBQ(*DIRECT)",
             TdOmsCommandStep.buildCommand(release));
         assertTrue(new TdOmsDeployStep.DescriptorImpl().getRequiredContext()
             .contains(org.jenkinsci.plugins.ibmisteps.model.IBMiContext.class));
